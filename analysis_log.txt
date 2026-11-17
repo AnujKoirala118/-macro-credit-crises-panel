@@ -1,0 +1,331 @@
+-----------------------------------------------------
+      name:  <unnamed>
+       log:  U:\Projects\credit-crisis-panel\output/a
+> nalysis_log.txt
+  log type:  text
+ opened on:  15 Nov 2026, 13:47:28
+
+. 
+. * Always start with the pristine panel dataset
+. use "clean/panel.dta", clear
+
+. 
+. * 1. Check exact full variable names
+. ds Domestic* GDPgrowth* Inflation*
+Domesticcr~o  GDPgrowtha~K
+Domesticcr~a  Inflationc~u
+
+. 
+. 
+. 
+. * 2. Rename explicitly to avoid wildcard ambiguity
+. rename Domesticcredittoprivatesecto credit_priv
+
+. rename GDPgrowthannua* gdp_growth
+
+. rename Inflationcons* inflation
+
+. 
+. * ==========================================
+. * 3. Set panel structure and build credit boom vari
+> able
+. * ==========================================
+. xtset id year
+
+Panel variable: id (strongly balanced)
+ Time variable: year, 1990 to 2017
+         Delta: 1 unit
+
+. 
+. gen d3_credit = credit_priv - L3.credit_priv
+(1,394 missing values generated)
+
+. 
+. * --- DATA CLEANING LOG: STRUCTURAL BREAKS ---
+. * Denmark: structural break in WDI credit series in
+>  2000 (34 -> 132 in one year)
+. * Treated as missing to avoid false-positive credit
+>  boom flags.
+. replace d3_credit = . if iso3=="DNK" & inrange(year
+> , 2000, 2002)
+(3 real changes made, 3 to missing)
+
+. * ---------------------------------------------
+. 
+. * Re-generate the boom indicator after the fix
+. gen boom = (d3_credit > 10) if !missing(d3_credit)
+(1,397 missing values generated)
+
+. 
+. * Verification checks
+. summarize d3_credit
+
+    Variable |        Obs        Mean    Std. dev.   
+>     Min        Max
+-------------+---------------------------------------
+> ------------------
+   d3_credit |      2,579    2.139763    12.82856  -1
+> 29.1927   177.3385
+
+. tab boom, missing
+
+       boom |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |      2,230       56.09       56.09
+          1 |        349        8.78       64.86
+          . |      1,397       35.14      100.00
+------------+-----------------------------------
+      Total |      3,976      100.00
+
+. 
+. * ==========================================
+. * 4. Regressions
+. * ==========================================
+. gen ln_infl = ln(1 + inflation/100)
+(383 missing values generated)
+
+. 
+. * A. Pooled, all countries
+. reg banking_crisis L.d3_credit L.gdp_growth L.ln_in
+> fl, robust
+
+Linear regression                               Numbe
+> r of obs     =      2,299
+                                                F(3, 
+> 2295)        =       5.06
+                                                Prob 
+> > F          =     0.0017
+                                                R-squ
+> ared         =     0.0318
+                                                Root 
+> MSE          =     .12877
+
+-----------------------------------------------------
+> -------------------------
+             |               Robust
+banking_cr~s | Coefficient  std. err.      t    P>|t|
+>      [95% con                                      
+>              f. interval]
+-------------+---------------------------------------
+> -------------------------
+   d3_credit |
+         L1. |   .0014851   .0004344     3.42   0.001
+>      .0006332                                      
+>                  .0023371
+             |
+  gdp_growth |
+         L1. |  -.0002367   .0003038    -0.78   0.436
+>     -.0008325                                      
+>                  .0003591
+             |
+     ln_infl |
+         L1. |   .0964346   .0509917     1.89   0.059
+>       -.00356                                      
+>                  .1964291
+             |
+       _cons |   .0082972   .0041785     1.99   0.047
+>      .0001031                                      
+>                  .0164913
+-----------------------------------------------------
+> -------------------------
+
+. 
+. * B. Country and year fixed effects
+. xtreg banking_crisis L.d3_credit L.gdp_growth L.ln_
+> infl i.year, fe vce(cluster id)
+
+Fixed-effects (within) regression               Numbe
+> r of obs                                           
+>              =                                     
+>                     2,299
+Group variable: id                              Numbe
+> r of groups                                        
+>              =                                     
+>                       133
+
+R-squared:                                      Obs p
+> er group:
+     Within  = 0.1107                                
+>          min                                       
+>              =                                     
+>                         1
+     Between = 0.0069                                
+>          avg                                       
+>              =                                     
+>                      17.3
+     Overall = 0.0994                                
+>          max                                       
+>              =                                     
+>                        24
+
+                                                F(26,
+> 132)                                               
+>              =                                     
+>                      4.78
+corr(u_i, Xb) = -0.0660                         Prob 
+> > F                                                
+>              =                                     
+>                    0.0000
+
+                                   (Std. err. adjuste
+> d for 133 clusters in id)
+-----------------------------------------------------
+> -------------------------
+             |               Robust
+banking_cr~s | Coefficient  std. err.      t    P>|t|
+>      [95% con                                      
+>              f. interval]
+-------------+---------------------------------------
+> -------------------------
+   d3_credit |
+         L1. |   .0014461   .0003408     4.24   0.000
+>      .0007719                                      
+>                  .0021202
+             |
+  gdp_growth |
+         L1. |   .0001599   .0002962     0.54   0.590
+>      -.000426                                      
+>                  .0007458
+             |
+     ln_infl |
+         L1. |   .0947484   .0301352     3.14   0.002
+>       .035138                                      
+>                  .1543587
+             |
+        year |
+       1995  |  -.0195371   .0382127    -0.51   0.610
+>     -.0951256                                      
+>                  .0560514
+       1996  |  -.0278435   .0324584    -0.86   0.393
+>     -.0920493                                      
+>                  .0363624
+       1997  |  -.0137977   .0349266    -0.40   0.693
+>     -.0828859                                      
+>                  .0552905
+       1998  |  -.0314391   .0324856    -0.97   0.335
+>     -.0956988                                      
+>                  .0328206
+       1999  |  -.0542865   .0257248    -2.11   0.037
+>     -.1051727                                      
+>                 -.0034004
+       2000  |  -.0517743   .0255561    -2.03   0.045
+>     -.1023268                                      
+>                 -.0012219
+       2001  |   -.048529   .0256124    -1.89   0.060
+>     -.0991928                                      
+>                  .0021348
+       2002  |  -.0354187   .0289641    -1.22   0.224
+>     -.0927125                                      
+>                  .0218751
+       2003  |  -.0468736    .025488    -1.84   0.068
+>     -.0972913                                      
+>                  .0035442
+       2004  |  -.0491844   .0256942    -1.91   0.058
+>     -.1000101                                      
+>                  .0016413
+       2005  |  -.0562101    .025768    -2.18   0.031
+>     -.1071818                                      
+>                 -.0052385
+       2006  |  -.0600251   .0257952    -2.33   0.021
+>     -.1110506                                      
+>                 -.0089996
+       2007  |  -.0423571    .029953    -1.41   0.160
+>     -.1016072                                      
+>                   .016893
+       2008  |   .1035934   .0434426     2.38   0.019
+>      .0176597                                      
+>                  .1895271
+       2009  |  -.0570681   .0282304    -2.02   0.045
+>     -.1129107                                      
+>                 -.0012255
+       2010  |  -.0598124   .0264689    -2.26   0.025
+>     -.1121704                                      
+>                 -.0074544
+       2011  |  -.0474896   .0272403    -1.74   0.084
+>     -.1013735                                      
+>                  .0063944
+       2012  |  -.0563046   .0260008    -2.17   0.032
+>     -.1077368                                      
+>                 -.0048725
+       2013  |  -.0537083   .0259241    -2.07   0.040
+>     -.1049887                                      
+>                 -.0024279
+       2014  |  -.0315441   .0287112    -1.10   0.274
+>     -.0883378                                      
+>                  .0252496
+       2015  |  -.0556366   .0260103    -2.14   0.034
+>     -.1070874                                      
+>                 -.0041857
+       2016  |  -.0554499   .0260458    -2.13   0.035
+>     -.1069711                                      
+>                 -.0039287
+       2017  |  -.0549851   .0260025    -2.11   0.036
+>     -.1064206                                      
+>                 -.0035495
+             |
+       _cons |   .0459411   .0253479     1.81   0.072
+>     -.0041996                                      
+>                  .0960817
+-------------+---------------------------------------
+> -------------------------
+     sigma_u |   .0386504
+     sigma_e |  .12469799
+         rho |  .08764977   (fraction of variance due
+>  to u_i)
+-----------------------------------------------------
+> -------------------------
+
+. 
+. * C. Without the extreme cases
+. reg banking_crisis L.d3_credit L.gdp_growth L.ln_in
+> fl if !inlist(iso3, "BRA", "ZWE", "ISL", "CYP"), ro
+> bust
+
+Linear regression                               Numbe
+> r of obs     =      2,233
+                                                F(3, 
+> 2229)        =       4.58
+                                                Prob 
+> > F          =     0.0034
+                                                R-squ
+> ared         =     0.0172
+                                                Root 
+> MSE          =     .12666
+
+-----------------------------------------------------
+> -------------------------
+             |               Robust
+banking_cr~s | Coefficient  std. err.      t    P>|t|
+>      [95% con                                      
+>              f. interval]
+-------------+---------------------------------------
+> -------------------------
+   d3_credit |
+         L1. |   .0015026   .0004767     3.15   0.002
+>      .0005677                                      
+>                  .0024375
+             |
+  gdp_growth |
+         L1. |  -.0002454   .0002966    -0.83   0.408
+>      -.000827                                      
+>                  .0003361
+             |
+     ln_infl |
+         L1. |   .0720881   .0399423     1.80   0.071
+>     -.0062399                                      
+>                   .150416
+             |
+       _cons |   .0094322   .0030594     3.08   0.002
+>      .0034326                                      
+>                  .0154318
+-----------------------------------------------------
+> -------------------------
+
+. 
+. log close
+      name:  <unnamed>
+       log:  U:\Projects\credit-crisis-panel\output/a
+> nalysis_log.txt
+  log type:  text
+ closed on:  15 Nov 2026, 13:48:26
+-----------------------------------------------------
